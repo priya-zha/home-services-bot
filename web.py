@@ -108,7 +108,7 @@ def returning():
     latest = conversations[-1]
     return jsonify({
         "found": True,
-        "customer_name": latest.get("transcript", [{}])[0].get("content", "")[:0] or None,
+        "customer_name": latest.get("customer_name"),
         "last_service": latest.get("service"),
         "last_problem": latest.get("problem"),
         "last_timestamp": latest.get("timestamp"),
@@ -120,7 +120,7 @@ def returning():
 
 @app.route("/resume", methods=["POST"])
 def resume():
-    """Start a new session pre-filled with the returning customer's known info."""
+    """Start a fresh session pre-filled with the returning customer's known contact info."""
     data = request.get_json()
     email = data.get("email", "").strip()
     if not email:
@@ -131,34 +131,18 @@ def resume():
         return jsonify({"error": "No history found"}), 404
 
     latest = conversations[-1]
-    transcript = latest.get("transcript", [])
 
-    # Rebuild context with known fields from last conversation
-    from utils.models import ServiceType
+    # Fresh context — known fields pre-filled so booking bot won't re-ask them,
+    # but history is empty so the old completed booking is NOT re-triggered.
     context = JobContext()
     context.customer_email = email
-
-    # Extract name from transcript (first user message usually has it if captured)
-    for msg in transcript:
-        if msg.get("role") == "user":
-            break
-
-    # Restore known fields
-    if latest.get("address"):
-        context.address = latest["address"]
-    if latest.get("preferred_time"):
-        context.preferred_time = latest["preferred_time"]
-    if latest.get("service"):
-        try:
-            context.service_type = ServiceType(latest["service"])
-        except (ValueError, KeyError):
-            pass
-
-    # Restore full conversation history so the bot knows the context
-    context.conversation_history = list(transcript)
+    context.customer_name = latest.get("customer_name")
+    context.phone = latest.get("phone")
+    context.address = latest.get("address")
+    # conversation_history stays empty — this is a brand new request
 
     session_id = str(uuid.uuid4())
-    sessions[session_id] = {"context": context, "phase": "specialist"}
+    sessions[session_id] = {"context": context, "phase": "intake"}
 
     return jsonify({"session_id": session_id})
 

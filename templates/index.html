@@ -497,6 +497,8 @@
     let sessionId = null;
     let conversationDone = false;
     let returningEmail = null;
+    let returningTranscript = null;
+    let returningCustomerName = null;
 
     const messagesEl = document.getElementById("messages");
     const inputEl = document.getElementById("input");
@@ -593,11 +595,17 @@
         return;
       }
 
+      // Store for use in resumeConversation
+      returningTranscript = data.transcript || [];
+      returningCustomerName = data.customer_name || null;
+
       // Show welcome-back card
       document.getElementById("returning-lookup").style.display = "none";
       statusEl.textContent = "";
 
       const date = new Date(data.last_timestamp).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+      const nameDisplay = data.customer_name ? ` ${data.customer_name.split(" ")[0]}` : "";
+      document.getElementById("wb-title").textContent = `Welcome back${nameDisplay}!`;
       document.getElementById("wb-last").innerHTML =
         `<strong>Last visit:</strong> ${date}<br>` +
         (data.last_service ? `<strong>Service:</strong> ${data.last_service}<br>` : "") +
@@ -619,32 +627,29 @@
 
       document.getElementById("welcome-overlay").style.display = "none";
 
-      // Show the past transcript so the customer can see the history
-      const histRes = await fetch("/returning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: returningEmail }),
-      });
-      const histData = await histRes.json();
-      const transcript = histData.transcript || [];
+      // Show previous transcript as read-only history (collapsed by default)
+      if (returningTranscript && returningTranscript.length > 0) {
+        const historyWrap = document.createElement("div");
+        historyWrap.style.cssText = "margin: 8px 0;";
+        historyWrap.innerHTML = `<details style="font-size:11px;color:#aaa;text-align:center;cursor:pointer;">
+          <summary style="list-style:none;padding:4px 0;">— View previous conversation —</summary>
+          <div id="prev-transcript" style="margin-top:8px;"></div>
+        </details>`;
+        messagesEl.appendChild(historyWrap);
 
-      if (transcript.length > 0) {
-        const divider = document.createElement("div");
-        divider.style.cssText = "text-align:center;font-size:11px;color:#aaa;padding:4px 0;";
-        divider.textContent = "— Previous conversation —";
-        messagesEl.appendChild(divider);
-
-        for (const msg of transcript) {
-          appendMessage(msg.content, msg.role === "user" ? "user" : "bot");
+        const prevEl = historyWrap.querySelector("#prev-transcript");
+        for (const msg of returningTranscript) {
+          const wrap = document.createElement("div");
+          wrap.className = `message ${msg.role === "user" ? "user" : "bot"}`;
+          wrap.style.opacity = "0.6";
+          wrap.innerHTML = `<div class="bubble">${msg.content}</div>`;
+          prevEl.appendChild(wrap);
         }
-
-        const divider2 = document.createElement("div");
-        divider2.style.cssText = "text-align:center;font-size:11px;color:#aaa;padding:4px 0;";
-        divider2.textContent = "— Continuing from here —";
-        messagesEl.appendChild(divider2);
       }
 
-      appendMessage("Welcome back! I've loaded your previous conversation. How can I help you today?", "bot");
+      // Fresh greeting — this is a new request, not a continuation
+      const name = returningCustomerName ? `, ${returningCustomerName.split(" ")[0]}` : "";
+      appendMessage(`Welcome back${name}! Your contact info is already on file. What can I help you with today?`, "bot");
       inputEl.focus();
     }
 

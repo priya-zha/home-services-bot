@@ -216,6 +216,8 @@ def _save_conversation(context: JobContext):
         "urgency": context.urgency.value,
         "service": context.service_type.value if context.service_type else None,
         "problem": context.problem_description,
+        "customer_name": context.customer_name,
+        "phone": context.phone,
         "address": context.address,
         "preferred_time": context.preferred_time,
         "timezone": context.timezone,
