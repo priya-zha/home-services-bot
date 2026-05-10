@@ -93,5 +93,75 @@ def history():
     return jsonify({"conversations": conversations})
 
 
+@app.route("/returning", methods=["POST"])
+def returning():
+    """Check if an email has past conversations and return the latest one."""
+    data = request.get_json()
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"found": False}), 400
+
+    conversations = orchestrator.get_history_by_email(email)
+    if not conversations:
+        return jsonify({"found": False})
+
+    latest = conversations[-1]
+    return jsonify({
+        "found": True,
+        "customer_name": latest.get("transcript", [{}])[0].get("content", "")[:0] or None,
+        "last_service": latest.get("service"),
+        "last_problem": latest.get("problem"),
+        "last_timestamp": latest.get("timestamp"),
+        "address": latest.get("address"),
+        "preferred_time": latest.get("preferred_time"),
+        "transcript": latest.get("transcript", []),
+    })
+
+
+@app.route("/resume", methods=["POST"])
+def resume():
+    """Start a new session pre-filled with the returning customer's known info."""
+    data = request.get_json()
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+
+    conversations = orchestrator.get_history_by_email(email)
+    if not conversations:
+        return jsonify({"error": "No history found"}), 404
+
+    latest = conversations[-1]
+    transcript = latest.get("transcript", [])
+
+    # Rebuild context with known fields from last conversation
+    from utils.models import ServiceType
+    context = JobContext()
+    context.customer_email = email
+
+    # Extract name from transcript (first user message usually has it if captured)
+    for msg in transcript:
+        if msg.get("role") == "user":
+            break
+
+    # Restore known fields
+    if latest.get("address"):
+        context.address = latest["address"]
+    if latest.get("preferred_time"):
+        context.preferred_time = latest["preferred_time"]
+    if latest.get("service"):
+        try:
+            context.service_type = ServiceType(latest["service"])
+        except (ValueError, KeyError):
+            pass
+
+    # Restore full conversation history so the bot knows the context
+    context.conversation_history = list(transcript)
+
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = {"context": context, "phase": "specialist"}
+
+    return jsonify({"session_id": session_id})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

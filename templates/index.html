@@ -27,6 +27,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
     .chat-header {
@@ -249,6 +250,188 @@
     .past-transcript .t-label { font-weight: 600; }
     .past-transcript .t-customer { color: #1a73e8; }
     .past-transcript .t-bot { color: #555; }
+
+    /* Welcome overlay */
+    .welcome-overlay {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      z-index: 10;
+    }
+
+    .welcome-overlay .house-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-overlay h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .welcome-overlay p {
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .welcome-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .welcome-btns .btn-primary {
+      width: 100%;
+      height: 46px;
+      border-radius: 12px;
+      border: none;
+      background: #1a73e8;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .welcome-btns .btn-primary:hover { background: #1558b0; }
+
+    .welcome-btns .btn-secondary {
+      width: 100%;
+      height: 46px;
+      border-radius: 12px;
+      border: 1.5px solid #1a73e8;
+      background: white;
+      color: #1a73e8;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .welcome-btns .btn-secondary:hover { background: #f0f5ff; }
+
+    /* Returning customer lookup inside overlay */
+    .returning-lookup {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .returning-lookup input[type="email"] {
+      width: 100%;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    .returning-lookup input[type="email"]:focus { border-color: #1a73e8; }
+
+    .returning-lookup .btn-primary {
+      width: 100%;
+      height: 44px;
+      border-radius: 10px;
+      border: none;
+      background: #1a73e8;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .returning-lookup .back-link {
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 4px;
+    }
+
+    .returning-lookup .status-msg {
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* Welcome-back card */
+    .welcome-back-card {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .welcome-back-card .wb-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .welcome-back-card .wb-sub {
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .welcome-back-card .wb-last {
+      background: #f0f2f5;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #333;
+      width: 100%;
+      margin-bottom: 18px;
+    }
+
+    .welcome-back-card .wb-last strong { color: #1a73e8; }
+
+    .welcome-back-card .btn-primary,
+    .welcome-back-card .btn-secondary {
+      width: 100%;
+      height: 44px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .welcome-back-card .btn-primary {
+      border: none;
+      background: #1a73e8;
+      color: white;
+    }
+    .welcome-back-card .btn-primary:hover { background: #1558b0; }
+
+    .welcome-back-card .btn-secondary {
+      border: 1.5px solid #1a73e8;
+      background: white;
+      color: #1a73e8;
+    }
+    .welcome-back-card .btn-secondary:hover { background: #f0f5ff; }
   </style>
 </head>
 <body>
@@ -261,12 +444,34 @@
       </div>
     </div>
 
-    <div class="messages" id="messages">
-      <div class="message bot">
-        <div class="bubble">Hi! I'm HomeBot, your home services assistant. How can I help you today?</div>
-        <div class="timestamp">Just now</div>
+    <!-- Welcome overlay shown on page load -->
+    <div class="welcome-overlay" id="welcome-overlay">
+      <div class="house-icon">🏠</div>
+      <h2>Welcome to HomeBot</h2>
+      <p>Your 24/7 home services assistant.<br>Are you a new or returning customer?</p>
+
+      <div class="welcome-btns" id="welcome-btns">
+        <button class="btn-primary" onclick="startNew()">New Customer</button>
+        <button class="btn-secondary" onclick="showReturningLookup()">Returning Customer</button>
+      </div>
+
+      <div class="returning-lookup" id="returning-lookup">
+        <input type="email" id="returning-email" placeholder="Enter your email address" />
+        <button class="btn-primary" onclick="checkReturning()">Continue</button>
+        <span class="back-link" onclick="showWelcomeBtns()">← Back</span>
+        <div class="status-msg" id="returning-status"></div>
+      </div>
+
+      <div class="welcome-back-card" id="welcome-back-card">
+        <div class="wb-title" id="wb-title">Welcome back!</div>
+        <div class="wb-sub">We found your previous request.</div>
+        <div class="wb-last" id="wb-last"></div>
+        <button class="btn-primary" onclick="resumeConversation()">Continue last conversation</button>
+        <button class="btn-secondary" onclick="startNew()">Start a new request</button>
       </div>
     </div>
+
+    <div class="messages" id="messages"></div>
 
     <div id="done-banner" class="done-banner" style="display:none;">
       ✅ All done! Check your email for a confirmation. We'll be in touch soon.
@@ -278,7 +483,7 @@
     </div>
 
     <div class="returning-bar">
-      <a onclick="toggleHistory()">Returning customer? View your past conversations</a>
+      <a onclick="toggleHistory()">View your past conversations</a>
     </div>
 
     <div class="history-panel" id="history-panel">
@@ -291,18 +496,17 @@
   <script>
     let sessionId = null;
     let conversationDone = false;
+    let returningEmail = null;
 
     const messagesEl = document.getElementById("messages");
     const inputEl = document.getElementById("input");
     const sendBtn = document.getElementById("send-btn");
 
-    // Auto-resize textarea
     inputEl.addEventListener("input", () => {
       inputEl.style.height = "auto";
       inputEl.style.height = inputEl.scrollHeight + "px";
     });
 
-    // Send on Enter (Shift+Enter for newline)
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -346,6 +550,105 @@
       const el = document.getElementById("typing");
       if (el) el.remove();
     }
+
+    // --- Welcome overlay ---
+
+    function startNew() {
+      document.getElementById("welcome-overlay").style.display = "none";
+      appendMessage("Hi! I'm HomeBot, your home services assistant. How can I help you today?", "bot");
+      inputEl.focus();
+    }
+
+    function showReturningLookup() {
+      document.getElementById("welcome-btns").style.display = "none";
+      document.getElementById("returning-lookup").style.display = "flex";
+      document.getElementById("returning-email").focus();
+    }
+
+    function showWelcomeBtns() {
+      document.getElementById("returning-lookup").style.display = "none";
+      document.getElementById("welcome-back-card").style.display = "none";
+      document.getElementById("welcome-btns").style.display = "flex";
+      document.getElementById("returning-status").textContent = "";
+    }
+
+    async function checkReturning() {
+      const email = document.getElementById("returning-email").value.trim();
+      const statusEl = document.getElementById("returning-status");
+      if (!email) { statusEl.textContent = "Please enter your email."; return; }
+
+      statusEl.textContent = "Looking up your account...";
+      returningEmail = email;
+
+      const res = await fetch("/returning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!data.found) {
+        statusEl.textContent = "No account found. Starting a new conversation.";
+        setTimeout(() => startNew(), 1200);
+        return;
+      }
+
+      // Show welcome-back card
+      document.getElementById("returning-lookup").style.display = "none";
+      statusEl.textContent = "";
+
+      const date = new Date(data.last_timestamp).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+      document.getElementById("wb-last").innerHTML =
+        `<strong>Last visit:</strong> ${date}<br>` +
+        (data.last_service ? `<strong>Service:</strong> ${data.last_service}<br>` : "") +
+        (data.last_problem ? `<strong>Issue:</strong> ${data.last_problem}` : "");
+
+      document.getElementById("welcome-back-card").style.display = "flex";
+    }
+
+    async function resumeConversation() {
+      const res = await fetch("/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: returningEmail }),
+      });
+
+      if (!res.ok) { startNew(); return; }
+      const data = await res.json();
+      sessionId = data.session_id;
+
+      document.getElementById("welcome-overlay").style.display = "none";
+
+      // Show the past transcript so the customer can see the history
+      const histRes = await fetch("/returning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: returningEmail }),
+      });
+      const histData = await histRes.json();
+      const transcript = histData.transcript || [];
+
+      if (transcript.length > 0) {
+        const divider = document.createElement("div");
+        divider.style.cssText = "text-align:center;font-size:11px;color:#aaa;padding:4px 0;";
+        divider.textContent = "— Previous conversation —";
+        messagesEl.appendChild(divider);
+
+        for (const msg of transcript) {
+          appendMessage(msg.content, msg.role === "user" ? "user" : "bot");
+        }
+
+        const divider2 = document.createElement("div");
+        divider2.style.cssText = "text-align:center;font-size:11px;color:#aaa;padding:4px 0;";
+        divider2.textContent = "— Continuing from here —";
+        messagesEl.appendChild(divider2);
+      }
+
+      appendMessage("Welcome back! I've loaded your previous conversation. How can I help you today?", "bot");
+      inputEl.focus();
+    }
+
+    // --- Chat ---
 
     async function sendMessage() {
       if (conversationDone) return;
@@ -411,7 +714,7 @@
         return;
       }
 
-      resultsEl.innerHTML = data.conversations.map((c, i) => {
+      resultsEl.innerHTML = data.conversations.map((c) => {
         const date = new Date(c.timestamp).toLocaleString();
         const badge = c.urgency === "EMERGENCY"
           ? `<span class="entry-badge badge-emergency">EMERGENCY</span>`

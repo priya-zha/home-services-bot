@@ -44,9 +44,6 @@ def run(customer_message: str, context: JobContext) -> JobContext:
     client = anthropic.Anthropic()
 
     messages = context.conversation_history.copy()
-    # Drop trailing assistant messages before appending new user turn
-    while messages and messages[-1]["role"] == "assistant":
-        messages.pop()
     messages.append({"role": "user", "content": customer_message})
 
     response = client.messages.create(
