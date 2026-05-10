@@ -1,4 +1,5 @@
 import os
+import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -181,6 +182,7 @@ def _finalize(context: JobContext):
     """Logs the job and sends all emails when a conversation completes."""
     bot_name = "EscalationBot" if context.urgency == Urgency.EMERGENCY else "BookingBot"
     logger.log_job(context, "", bot_name)
+    _save_conversation(context)
 
     if context.urgency == Urgency.EMERGENCY:
         _notify_owner_emergency(context)
@@ -188,3 +190,48 @@ def _finalize(context: JobContext):
     else:
         _notify_owner_booking(context)
         _confirm_customer_booking(context)
+
+
+def _save_conversation(context: JobContext):
+    """Persist conversation history keyed by customer email for retrieval."""
+    if not context.customer_email:
+        return
+
+    history_file = os.path.join(os.path.dirname(__file__), "logs", "conversations.json")
+    os.makedirs(os.path.dirname(history_file), exist_ok=True)
+
+    try:
+        with open(history_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+
+    email_key = context.customer_email.lower().strip()
+    if email_key not in data:
+        data[email_key] = []
+
+    from datetime import datetime
+    data[email_key].append({
+        "timestamp": datetime.now().isoformat(),
+        "urgency": context.urgency.value,
+        "service": context.service_type.value if context.service_type else None,
+        "problem": context.problem_description,
+        "address": context.address,
+        "preferred_time": context.preferred_time,
+        "timezone": context.timezone,
+        "transcript": context.conversation_history,
+    })
+
+    with open(history_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_history_by_email(email: str) -> list:
+    """Return all past conversations for a given email address."""
+    history_file = os.path.join(os.path.dirname(__file__), "logs", "conversations.json")
+    try:
+        with open(history_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get(email.lower().strip(), [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []

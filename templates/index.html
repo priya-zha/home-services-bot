@@ -180,6 +180,75 @@
 
     button:hover { background: #1558b0; }
     button:disabled { background: #ccc; cursor: not-allowed; }
+
+    .returning-bar {
+      padding: 10px 16px;
+      border-top: 1px solid #eee;
+      text-align: center;
+    }
+
+    .returning-bar a {
+      font-size: 12px;
+      color: #1a73e8;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .history-panel {
+      display: none;
+      padding: 12px 16px;
+      border-top: 1px solid #eee;
+      background: #f9f9f9;
+    }
+
+    .history-panel input {
+      width: 100%;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      box-sizing: border-box;
+      margin-bottom: 8px;
+    }
+
+    .history-panel input:focus { border-color: #1a73e8; }
+
+    .history-panel button.lookup-btn {
+      width: 100%;
+      border-radius: 8px;
+      font-size: 13px;
+      height: 34px;
+      margin-bottom: 8px;
+    }
+
+    .past-entry {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .past-entry .entry-date { color: #888; margin-bottom: 4px; }
+    .past-entry .entry-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .badge-emergency { background: #fde8e8; color: #c0392b; }
+    .badge-routine { background: #e8f5e9; color: #27ae60; }
+
+    .past-transcript { margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
+    .past-transcript .t-row { margin-bottom: 6px; }
+    .past-transcript .t-label { font-weight: 600; }
+    .past-transcript .t-customer { color: #1a73e8; }
+    .past-transcript .t-bot { color: #555; }
   </style>
 </head>
 <body>
@@ -206,6 +275,16 @@
     <div class="input-area">
       <textarea id="input" placeholder="Describe your issue..." rows="1"></textarea>
       <button id="send-btn" onclick="sendMessage()">&#10148;</button>
+    </div>
+
+    <div class="returning-bar">
+      <a onclick="toggleHistory()">Returning customer? View your past conversations</a>
+    </div>
+
+    <div class="history-panel" id="history-panel">
+      <input type="email" id="history-email" placeholder="Enter your email address" />
+      <button class="lookup-btn" onclick="lookupHistory()">Look up my conversations</button>
+      <div id="history-results"></div>
     </div>
   </div>
 
@@ -306,6 +385,58 @@
         appendMessage("Something went wrong. Please try again.", "bot");
         sendBtn.disabled = false;
       }
+    }
+
+    function toggleHistory() {
+      const panel = document.getElementById("history-panel");
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+
+    async function lookupHistory() {
+      const email = document.getElementById("history-email").value.trim();
+      const resultsEl = document.getElementById("history-results");
+      if (!email) { resultsEl.innerHTML = "<p style='color:red;font-size:12px'>Please enter your email.</p>"; return; }
+
+      resultsEl.innerHTML = "<p style='font-size:12px;color:#888'>Looking up...</p>";
+
+      const res = await fetch("/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!data.conversations || data.conversations.length === 0) {
+        resultsEl.innerHTML = "<p style='font-size:12px;color:#888'>No past conversations found for this email.</p>";
+        return;
+      }
+
+      resultsEl.innerHTML = data.conversations.map((c, i) => {
+        const date = new Date(c.timestamp).toLocaleString();
+        const badge = c.urgency === "EMERGENCY"
+          ? `<span class="entry-badge badge-emergency">EMERGENCY</span>`
+          : `<span class="entry-badge badge-routine">ROUTINE</span>`;
+
+        const transcript = (c.transcript || []).map(m => {
+          const isUser = m.role === "user";
+          return `<div class="t-row">
+            <span class="t-label ${isUser ? "t-customer" : "t-bot"}">${isUser ? "You" : "HomeBot"}:</span>
+            ${m.content}
+          </div>`;
+        }).join("");
+
+        return `<div class="past-entry">
+          <div class="entry-date">${date}</div>
+          ${badge}
+          <div><strong>Service:</strong> ${c.service || "—"}</div>
+          <div><strong>Problem:</strong> ${c.problem || "—"}</div>
+          ${c.preferred_time ? `<div><strong>Appointment:</strong> ${c.preferred_time} ${c.timezone || ""}</div>` : ""}
+          <details>
+            <summary style="font-size:11px;cursor:pointer;color:#1a73e8;margin-top:6px">View full conversation</summary>
+            <div class="past-transcript">${transcript}</div>
+          </details>
+        </div>`;
+      }).join("");
     }
   </script>
 </body>

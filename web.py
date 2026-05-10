@@ -83,5 +83,15 @@ def chat():
     return jsonify({"reply": RETRY_MESSAGE, "session_id": session_id, "done": False})
 
 
+@app.route("/history", methods=["POST"])
+def history():
+    data = request.get_json()
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    conversations = orchestrator.get_history_by_email(email)
+    return jsonify({"conversations": conversations})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
