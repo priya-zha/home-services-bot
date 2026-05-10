@@ -2,3 +2,5 @@ anthropic
 python-dotenv
 twilio
 rich
+flask
+gunicorn
